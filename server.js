@@ -84,8 +84,12 @@ const SPECIALS = {
 
 function code() { let c; do c=crypto.randomBytes(3).toString("hex").toUpperCase(); while(rooms.has(c)); return c; }
 function publicUrl(req, roomCode){
-const host = process.env.PUBLIC_HOST || "192.168.0.101:3000";
-return `http://${host}/?room=${encodeURIComponent(roomCode)}`;
+  // Render работает за reverse proxy: учитываем внешний host/protocol,
+  // чтобы QR-код открывал публичный адрес сервиса, а не локальный IP разработчика.
+  const host = process.env.PUBLIC_HOST || (req && (req.get("x-forwarded-host") || req.get("host"))) || "localhost:3000";
+  const forwardedProto = req && req.get("x-forwarded-proto");
+  const proto = process.env.PUBLIC_PROTOCOL || (forwardedProto ? forwardedProto.split(",")[0].trim() : (req ? req.protocol : "http"));
+  return `${proto}://${host}/?room=${encodeURIComponent(roomCode)}`;
 }
 function roomSnapshot(room) {
   return {
